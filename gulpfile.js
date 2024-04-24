@@ -84,3 +84,23 @@ gulp.task(
 		"images"
 	)
 );
+gulp.task('mytask', function(){
+	gulp.src('app/*.*')
+		.pipe(gulp.dest('dist/'));
+  });
+  
+  gulp.task('html', ['mytask'], function(){
+	gulp.src(path.app.html)
+	
+	  .pipe(gulp.dest(path.dist.html));
+  });
+
+function html(){
+	return src('src/**.html')
+		.pipe(include({
+			prefix: '@@'
+		}))
+		.pipe(dest('dist'))
+}
+
+exports.html = html

@@ -1,106 +1,117 @@
 const gulp = require("gulp");
-const browserSync = require("browser-sync");
 const sass = require("gulp-sass")(require("sass"));
 const cleanCSS = require("gulp-clean-css");
-const autoprefixer = require("gulp-autoprefixer");
+const terser = require("gulp-terser");
 const rename = require("gulp-rename");
-const htmlmin = require("gulp-htmlmin");
+const sourcemaps = require("gulp-sourcemaps");
+const browserSync = require("browser-sync").create();
 
-gulp.task("server", function () {
-	browserSync({
-		server: {
-			baseDir: "dist",
-		},
-	});
+// Путь к исходным и готовым файлам
+const paths = {
+  sassStyles: {
+    src: "src/sass/**/*.scss",
+    dest: "dist/css/",
+  },
+  cssStyles: {
+    src: "src/css/**/*.css",
+    dest: "dist/css/",
+  },
+  scripts: {
+    src: "src/js/**/*.js",
+    dest: "dist/scripts/",
+  },
+  html: {
+    src: "src/*.html",
+    dest: "dist/",
+  },
+  images: {
+    src: "src/img/**/*",
+    dest: "dist/img/",
+  },
+  icons: {
+    src: "src/icons/**/*",
+    dest: "dist/icons/",
+  },
+};
 
-	gulp.watch("src/*.html").on("change", browserSync.reload);
-});
-
-gulp.task("styles", function () {
-	return gulp
-		.src("src/sass/**/*.+(scss|sass)")
-		.pipe(sass({ outputStyle: "compressed" }).on("error", sass.logError))
-		.pipe(rename({ suffix: ".min", prefix: "" }))
-		.pipe(autoprefixer())
-		.pipe(cleanCSS({ compatibility: "ie8" }))
-		.pipe(gulp.dest("dist/css"))
-		.pipe(browserSync.stream());
-});
-
-gulp.task("watch", function () {
-	gulp.watch("src/sass/**/*.+(scss|sass|css)", gulp.parallel("styles"));
-	gulp.watch("src/*.html").on("change", gulp.parallel("html"));
-	gulp.watch("src/js/**/*.js").on("change", gulp.parallel("scripts"));
-	gulp.watch("src/fonts/**/*").on("all", gulp.parallel("fonts"));
-	gulp.watch("src/icons/**/*").on("all", gulp.parallel("icons"));
-	gulp.watch("src/img/**/*").on("all", gulp.parallel("images"));
-});
-
-gulp.task("html", function () {
-	return gulp
-		.src("src/*.html")
-		.pipe(htmlmin({ collapseWhitespace: true }))
-		.pipe(gulp.dest("dist/"));
-});
-
-gulp.task("scripts", function () {
-	return gulp
-		.src("src/js/**/*.js")
-		.pipe(gulp.dest("dist/js"))
-		.pipe(browserSync.stream());
-});
-
-gulp.task("fonts", function () {
-	return gulp
-		.src("src/fonts/**/*")
-		.pipe(gulp.dest("dist/fonts"))
-		.pipe(browserSync.stream());
-});
-
-gulp.task("icons", function () {
-	return gulp
-		.src("src/icons/**/*")
-		.pipe(gulp.dest("dist/icons"))
-		.pipe(browserSync.stream());
-});
-
-gulp.task("images", function () {
-	return gulp
-		.src("src/img/**/*")
-		.pipe(gulp.dest("dist/img"))
-		.pipe(browserSync.stream());
-});
-
-gulp.task(
-	"default",
-	gulp.parallel(
-		"watch",
-		"server",
-		"styles",
-		"scripts",
-		"fonts",
-		"icons",
-		"html",
-		"images"
-	)
-);
-gulp.task('mytask', function(){
-	gulp.src('app/*.*')
-		.pipe(gulp.dest('dist/'));
-  });
-  
-  gulp.task('html', ['mytask'], function(){
-	gulp.src(path.app.html)
-	
-	  .pipe(gulp.dest(path.dist.html));
-  });
-
-function html(){
-	return src('src/**.html')
-		.pipe(include({
-			prefix: '@@'
-		}))
-		.pipe(dest('dist'))
+// Задача для компиляции SCSS в CSS
+function compileSass() {
+  return gulp
+    .src(paths.sassStyles.src)
+    .pipe(sourcemaps.init())
+    .pipe(sass().on("error", sass.logError))
+    .pipe(cleanCSS())
+    .pipe(rename({ suffix: ".min" }))
+    .pipe(sourcemaps.write("."))
+    .pipe(gulp.dest(paths.sassStyles.dest))
+    .pipe(browserSync.stream());
 }
 
-exports.html = html
+// Задача для минификации CSS
+function minifyCss() {
+  return gulp
+    .src(paths.cssStyles.src)
+    .pipe(sourcemaps.init())
+    .pipe(cleanCSS())
+    .pipe(rename({ suffix: ".min" }))
+    .pipe(sourcemaps.write("."))
+    .pipe(gulp.dest(paths.cssStyles.dest))
+    .pipe(browserSync.stream());
+}
+
+// Задача для минификации JavaScript
+function minifyJs() {
+  return gulp
+    .src(paths.scripts.src)
+    .pipe(sourcemaps.init())
+    .pipe(terser())
+    .pipe(rename({ suffix: ".min" }))
+    .pipe(sourcemaps.write("."))
+    .pipe(gulp.dest(paths.scripts.dest))
+    .pipe(browserSync.stream());
+}
+
+// Задача для копирования HTML файлов
+function html() {
+  return gulp
+    .src(paths.html.src)
+    .pipe(gulp.dest(paths.html.dest))
+    .pipe(browserSync.stream());
+}
+
+// Задача для копирования изображений
+function images() {
+  return gulp
+    .src(paths.images.src)
+    .pipe(gulp.dest(paths.images.dest))
+    .pipe(browserSync.stream());
+}
+
+// Задача для копирования иконок
+function icons() {
+  return gulp
+    .src(paths.icons.src)
+    .pipe(gulp.dest(paths.icons.dest))
+    .pipe(browserSync.stream());
+}
+
+// Задача слежения за изменениями файлов
+function watch() {
+  browserSync.init({
+    server: {
+      baseDir: "./dist/",
+    },
+  });
+  gulp.watch(paths.sassStyles.src, compileSass);
+  gulp.watch(paths.cssStyles.src, minifyCss);
+  gulp.watch(paths.scripts.src, minifyJs);
+  gulp.watch(paths.html.src, html);
+  gulp.watch(paths.images.src, images);
+  gulp.watch(paths.icons.src, icons);
+}
+
+// Определяем задачи по умолчанию
+gulp.task(
+  "default",
+  gulp.parallel(compileSass, minifyJs, html, images, watch, minifyCss, icons)
+);
